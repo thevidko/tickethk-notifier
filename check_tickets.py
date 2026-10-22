@@ -55,10 +55,17 @@ def parse_zones(page):
                 "id": z["id"],
                 "name": name,
                 "price": z.get("price"),
-                "left": z.get("capacity") or 0,
-                "sellable": bool(z.get("is_sellable")),
+                "left": z["capacity"],
+                "sellable": z["is_sellable"],
             }
         )
+    # Kontrola struktury – když web něco přejmenuje, ať to spadne s chybou
+    # místo tichého hlášení „vyprodáno“.
+    for z in zones:
+        if not isinstance(z["left"], int) or not isinstance(z["sellable"], bool):
+            raise ValueError(f"neočekávaná data zóny {z['name']}: {z}")
+    if not zones:
+        raise ValueError("nenalezena žádná zóna se vstupenkami (změnil se web, nebo špatně ZONES?)")
     return event, zones
 
 
@@ -101,7 +108,11 @@ def main():
     except Exception as e:  # síť, změna struktury webu...
         print(f"chyba: {e}", file=sys.stderr)
         if not state.get("error"):
-            notify("Ticket notifier: chyba", f"{e}", tags="warning")
+            notify(
+                "Ticket notifier: chyba",
+                f"{e}\nNotifier teď nevidí stav vstupenek – koukni na stránku ručně.",
+                tags="warning",
+            )
         state["error"] = True
         save_state(state)
         return None
