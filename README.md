@@ -16,6 +16,8 @@ docker compose logs -f
 
 V mobilu nainstaluj aplikaci **ntfy** a přihlas se k odběru stejného topicu, jaký máš v `NTFY_URL`.
 
+Po startu kontejneru přijde testovací notifikace **„Ticket notifier spuštěn“** s aktuálním stavem vstupenek – podle ní poznáš, že je všechno správně propojené. Když nepřijde, podívej se do `docker compose logs`.
+
 Aktualizace: `git pull && docker compose up -d --build`
 
 ## Konfigurace (`.env`)

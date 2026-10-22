@@ -104,7 +104,7 @@ def main():
             notify("Ticket notifier: chyba", f"{e}", tags="warning")
         state["error"] = True
         save_state(state)
-        return 1
+        return None
 
     available = [z for z in zones if z["left"] > 0 and z["sellable"]]
     was_available = state.get("available", False)
@@ -120,19 +120,42 @@ def main():
     elif not available and was_available:
         notify(f"Zase vyprodáno: {event['name']['cs']}", "Vstupenky jsou pryč.", tags="x")
 
-    print(
+    status = (
         "dostupné: " + summary
         if available
         else "vyprodáno (" + ", ".join(f"{z['name']}={z['left']}" for z in zones) + ")"
     )
+    print(status)
     save_state({"available": bool(available), "error": False})
-    return 0
+    return status
+
+
+def startup():
+    """Při startu smyčky pošle testovací notifikaci, aby bylo vidět, že ntfy funguje."""
+    if not NTFY_URL:
+        print("VAROVÁNÍ: NTFY_URL není nastavené, notifikace se nebudou posílat", file=sys.stderr)
+    status = main()
+    if not NTFY_URL:
+        return
+    try:
+        notify(
+            "Ticket notifier spuštěn",
+            f"Hlídám {EVENT_URL} každé {INTERVAL} s.\nAktuálně: {status or 'chyba při načtení stránky'}",
+            priority="low",
+            tags="white_check_mark",
+        )
+        print("testovací notifikace odeslána")
+    except Exception as e:
+        print(f"VAROVÁNÍ: testovací notifikaci se nepodařilo odeslat: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":
     if not INTERVAL:
-        sys.exit(main())
+        sys.exit(0 if main() else 1)
+    startup()
     while True:
-        main()
-        sys.stdout.flush()
         time.sleep(INTERVAL + random.uniform(0, INTERVAL / 4))
+        try:
+            main()
+        except Exception as e:  # typicky nedostupné ntfy – stav se neuloží, zkusí se to znovu
+            print(f"chyba při odesílání notifikace: {e}", file=sys.stderr)
